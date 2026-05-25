@@ -2,6 +2,8 @@
 
 Multi-tenant white-label investment platform backend built with NestJS, Prisma, and PostgreSQL.
 
+This repository is published as `open-real-nestjs2.0`. The name means this is the second major NestJS backend version of the OpenReal platform, focused on real-world asset investment workflows, tenant isolation, issuer operations, investor onboarding, compliance, transfers, and admin tooling.
+
 ## Tech Stack
 
 - **Runtime**: Node.js (ESM)
@@ -314,5 +316,3 @@ docker compose restart app
 ## License
 
 UNLICENSED — Proprietary
-
-# open-real-nestjs2.0
