@@ -1,0 +1,966 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum FeatureTier {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum UserRole {
+  REGISTERED
+  VERIFIED
+  ISSUER
+  ADMIN
+  SUPER_ADMIN
+  SPV_MANAGER
+  SETTLEMENT_OPS
+  MARKET_OPS
+  COMPLIANCE_OFFICER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum VerificationStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum EligibilityStatus {
+  PENDING
+  ELIGIBLE
+  NOT_ELIGIBLE
+}
+
+enum KYBStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum OpportunityStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  LIVE
+  CLOSED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+enum InvestmentRequestStatus {
+  REQUEST_CREATED
+  PENDING_PAYMENT_CONFIRMATION
+  CONFIRMED
+  FAILED
+  EXPIRED
+}
+
+enum HoldingStatus {
+  ACTIVE
+  REDEEMED
+  TRANSFERRED
+}
+
+enum DistributionStatus {
+  PENDING
+  PAID
+}
+
+enum AssetClass {
+  REAL_ESTATE
+  INFRASTRUCTURE
+  PRIVATE_EQUITY
+  PRIVATE_CREDIT
+  COMMODITIES
+  ART_AND_COLLECTIBLES
+  OTHER
+}
+
+enum Region {
+  NORTH_AMERICA
+  EUROPE
+  ASIA_PACIFIC
+  MIDDLE_EAST
+  AFRICA
+  LATIN_AMERICA
+  GLOBAL
+}
+
+enum DocumentCategory {
+  PROSPECTUS
+  FACT_SHEET
+  LEGAL
+  FINANCIAL
+  OTHER
+}
+
+enum ContentCategory {
+  EDUCATION
+  NEWS
+  FAQ
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TransferCaseStatus {
+  DRAFT
+  RULES_CHECK
+  MANAGER_REVIEW
+  PRIORITY_WINDOW
+  KYC_READY
+  DOCS_PENDING
+  PAYMENT_PENDING
+  FINALIZING
+  COMPLETED
+  CANCELLED
+  ESCALATED
+  SUBMITTED
+  BUYER_SELECTED
+  BUYER_VERIFICATION_PENDING
+  COMPLIANCE_REVIEW
+  PAYMENT_CONFIRMED
+  REGISTER_UPDATE_IN_PROGRESS
+  REJECTED
+  EXPIRED
+}
+
+enum TransferInitiationType {
+  KNOWN_BUYER
+  ISSUER_MANAGED
+}
+
+enum TransferInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  REVOKED
+}
+
+enum TransferChecklistItemStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  REJECTED
+  WAIVED
+}
+
+enum PriorityNoticeStatus {
+  PENDING
+  EXERCISED
+  WAIVED
+  EXPIRED
+}
+
+enum TokenRecordStatus {
+  SHADOW_MIRROR
+  PENDING_SYNC
+  SYNCED
+  FAILED
+}
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderType {
+  MARKET
+  LIMIT
+  RFQ
+}
+
+enum OrderStatus {
+  PENDING_CHECKS
+  OPEN
+  MATCHED
+  PARTIALLY_FILLED
+  CANCELLED
+  ORDER_REJECTED
+  ORDER_EXPIRED
+}
+
+enum TradeStatus {
+  TRADE_PENDING
+  SETTLING
+  SETTLED
+  TRADE_FAILED
+}
+
+enum SettlementStatus {
+  SETTLEMENT_PENDING
+  PROCESSING
+  SETTLEMENT_COMPLETED
+  SETTLEMENT_FAILED
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id                String       @id @default(uuid())
+  name              String
+  slug              String       @unique
+  domain            String       @unique
+  additionalDomains String[]     @default([]) @map("additional_domains")
+  status            TenantStatus @default(ACTIVE)
+  featureTier       FeatureTier  @default(STARTER) @map("feature_tier")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  config               TenantConfig?
+  users                User[]
+  verifications        Verification[]
+  issuerOrgs           IssuerOrg[]
+  kybApplications      KYBApplication[]
+  opportunities        Opportunity[]
+  opportunityDocuments OpportunityDocument[]
+  investmentRequests   InvestmentRequest[]
+  paymentInstructions  PaymentInstruction[]
+  holdings             Holding[]
+  distributions        Distribution[]
+  statements           Statement[]
+  contentArticles      ContentArticle[]
+  supportTickets       SupportTicket[]
+  auditLogEvents       AuditLogEvent[]
+  bankDetails          BankDetails[]
+  transferCases        TransferCase[]
+  transferChecklistItems TransferChecklistItem[]
+  transferInvitations TransferInvitation[]
+  priorityNotices      PriorityNotice[]
+  registryEntries      RegistryEntry[]
+  tokenRecords         TokenRecord[]
+  orders               Order[]
+  trades               Trade[]
+  settlementRecords    SettlementRecord[]
+  liquidityConfigs     LiquidityConfig[]
+  notifications        Notification[]
+
+  @@index([status])
+  @@map("tenants")
+}
+
+model TenantConfig {
+  id           String   @id @default(uuid())
+  tenantId     String   @unique @map("tenant_id")
+  branding     Json     @default("{}")
+  legal        Json     @default("{}")
+  support      Json     @default("{}")
+  email        Json     @default("{}")
+  features     Json     @default("{}")
+  integrations Json     @default("{}")
+  workflows    Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("tenant_configs")
+}
+
+model User {
+  id            String     @id @default(uuid())
+  tenantId      String     @map("tenant_id")
+  email         String
+  passwordHash  String     @map("password_hash")
+  googleSub     String?    @map("google_sub")
+  fullName      String     @map("full_name")
+  phone         String?
+  role          UserRole   @default(REGISTERED)
+  emailVerified Boolean    @default(false) @map("email_verified")
+  mfaEnabled    Boolean    @default(false) @map("mfa_enabled")
+  mfaSecret     String?    @map("mfa_secret")
+  mfaRecoveryCodes String?    @map("mfa_recovery_codes")
+  status        UserStatus @default(ACTIVE)
+  lastLoginAt   DateTime?  @map("last_login_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  tenant                  Tenant              @relation(fields: [tenantId], references: [id])
+  verifications           Verification[]      @relation("UserVerifications")
+  reviewedVerifications   Verification[]      @relation("VerificationReviewer")
+  issuerOrgs              IssuerOrg[]
+  reviewedKYBApplications KYBApplication[]    @relation("KYBReviewer")
+  reviewedOpportunities   Opportunity[]       @relation("OpportunityReviewer")
+  investmentRequests      InvestmentRequest[]
+  holdings                Holding[]
+  supportTickets          SupportTicket[]
+  auditLogEvents          AuditLogEvent[]
+  bankDetails             BankDetails?
+  transferCasesAsSeller   TransferCase[]      @relation("TransferSeller")
+  transferCasesAsBuyer    TransferCase[]      @relation("TransferBuyer")
+  transferCasesAssigned   TransferCase[]      @relation("TransferCaseAssignee")
+  transferInvitationsCreated TransferInvitation[] @relation("TransferInvitationCreator")
+  priorityNotices         PriorityNotice[]
+  orders                  Order[]
+  notifications           Notification[]
+
+  @@unique([tenantId, email])
+  @@unique([tenantId, googleSub])
+  @@index([tenantId])
+  @@index([tenantId, role])
+  @@map("users")
+}
+
+model Verification {
+  id                String             @id @default(uuid())
+  tenantId          String             @map("tenant_id")
+  userId            String             @map("user_id")
+  provider          String
+  providerRef       String?            @map("provider_ref")
+  status            VerificationStatus @default(NOT_STARTED)
+  eligibilityStatus EligibilityStatus  @default(PENDING) @map("eligibility_status")
+  jurisdiction      String?
+  providerData      Json?              @map("provider_data")
+  reviewedBy        String?            @map("reviewed_by")
+  reviewedAt        DateTime?          @map("reviewed_at")
+  rejectionReason   String?            @map("rejection_reason")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  user     User   @relation("UserVerifications", fields: [userId], references: [id])
+  reviewer User?  @relation("VerificationReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([reviewedBy])
+  @@map("verifications")
+}
+
+model IssuerOrg {
+  id                     String     @id @default(uuid())
+  tenantId               String     @map("tenant_id")
+  name                   String
+  registrationNumber     String     @map("registration_number")
+  countryOfIncorporation String     @map("country_of_incorporation")
+  representativeUserId   String     @map("representative_user_id")
+  status                 UserStatus @default(ACTIVE)
+  createdAt              DateTime   @default(now()) @map("created_at")
+  updatedAt              DateTime   @updatedAt @map("updated_at")
+
+  tenant             Tenant           @relation(fields: [tenantId], references: [id])
+  representativeUser User             @relation(fields: [representativeUserId], references: [id])
+  kybApplications    KYBApplication[]
+  opportunities      Opportunity[]
+
+  @@unique([tenantId, representativeUserId])
+  @@index([tenantId])
+  @@index([representativeUserId])
+  @@map("issuer_orgs")
+}
+
+model KYBApplication {
+  id              String    @id @default(uuid())
+  tenantId        String    @map("tenant_id")
+  issuerOrgId     String    @map("issuer_org_id")
+  status          KYBStatus @default(SUBMITTED)
+  documents       Json
+  reviewedBy      String?   @map("reviewed_by")
+  reviewedAt      DateTime? @map("reviewed_at")
+  rejectionReason String?   @map("rejection_reason")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  issuerOrg IssuerOrg @relation(fields: [issuerOrgId], references: [id])
+  reviewer  User?     @relation("KYBReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([tenantId])
+  @@index([issuerOrgId])
+  @@index([reviewedBy])
+  @@map("kyb_applications")
+}
+
+model Opportunity {
+  id               String            @id @default(uuid())
+  tenantId         String            @map("tenant_id")
+  issuerOrgId      String            @map("issuer_org_id")
+  title            String
+  summary          String
+  investmentThesis String            @map("investment_thesis")
+  whatYouAreBuying String            @map("what_you_are_buying")
+  risks            String
+  feesAndConflicts String            @map("fees_and_conflicts")
+  faq              Json?
+  assetClass       AssetClass        @map("asset_class")
+  region           Region
+  heroImageKey     String?           @map("hero_image_key")
+  minimumAmount    Decimal?          @map("minimum_amount")
+  maximumAmount    Decimal?          @map("maximum_amount")
+  currency         String            @default("USD")
+  status           OpportunityStatus @default(DRAFT)
+  submittedAt      DateTime?         @map("submitted_at")
+  approvedAt       DateTime?         @map("approved_at")
+  reviewedBy       String?           @map("reviewed_by")
+  rejectionReason  String?           @map("rejection_reason")
+  adminFeedback    String?           @map("admin_feedback")
+  statusHistory    Json?             @map("status_history")
+  transferRequestEnabled  Boolean   @default(false) @map("transfer_request_enabled")
+  lockupUntil             DateTime? @map("lockup_until")
+  minTransferQuantity     Decimal?  @map("min_transfer_quantity")
+  maxHolders              Int?      @map("max_holders")
+  rofrEnabled             Boolean   @default(true) @map("rofr_enabled")
+  rofrWindowDays          Int       @default(14) @map("rofr_window_days")
+  featureConfig           Json?     @map("feature_config")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  tenant             Tenant                @relation(fields: [tenantId], references: [id])
+  issuerOrg          IssuerOrg             @relation(fields: [issuerOrgId], references: [id])
+  reviewer           User?                 @relation("OpportunityReviewer", fields: [reviewedBy], references: [id])
+  documents          OpportunityDocument[]
+  investmentRequests InvestmentRequest[]
+  holdings           Holding[]
+  transferCases      TransferCase[]
+  registryEntries    RegistryEntry[]
+  orders             Order[]
+  trades             Trade[]
+  liquidityConfig    LiquidityConfig?
+
+  @@index([tenantId])
+  @@index([issuerOrgId])
+  @@index([reviewedBy])
+  @@map("opportunities")
+}
+
+model OpportunityDocument {
+  id            String           @id @default(uuid())
+  tenantId      String           @map("tenant_id")
+  opportunityId String           @map("opportunity_id")
+  fileName      String           @map("file_name")
+  fileKey       String           @map("file_key")
+  fileSize      Int              @map("file_size")
+  mimeType      String           @map("mime_type")
+  category      DocumentCategory
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+
+  @@index([tenantId])
+  @@index([opportunityId])
+  @@map("opportunity_documents")
+}
+
+model InvestmentRequest {
+  id               String                 @id @default(uuid())
+  tenantId         String                 @map("tenant_id")
+  userId           String                 @map("user_id")
+  opportunityId    String                 @map("opportunity_id")
+  amount           Decimal
+  currency         String
+  status           InvestmentRequestStatus @default(REQUEST_CREATED)
+  referenceNumber  String                 @map("reference_number")
+  acknowledgements Json
+  statusHistory    Json                   @default("[]") @map("status_history")
+  expiresAt        DateTime               @map("expires_at")
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  user               User                @relation(fields: [userId], references: [id])
+  opportunity        Opportunity         @relation(fields: [opportunityId], references: [id])
+  paymentInstruction PaymentInstruction?
+  holdings           Holding[]
+
+  @@index([tenantId, referenceNumber])
+  @@unique([tenantId, referenceNumber])
+  @@index([userId])
+  @@index([opportunityId])
+  @@map("investment_requests")
+}
+
+model PaymentInstruction {
+  id                   String   @id @default(uuid())
+  tenantId             String   @map("tenant_id")
+  investmentRequestId  String   @unique @map("investment_request_id")
+  receivingAccountName String   @map("receiving_account_name")
+  receivingAccountIban String   @map("receiving_account_iban")
+  receivingBankName    String   @map("receiving_bank_name")
+  receivingBankSwift   String   @map("receiving_bank_swift")
+  paymentReference     String   @map("payment_reference")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  investmentRequest InvestmentRequest @relation(fields: [investmentRequestId], references: [id])
+
+  @@index([tenantId])
+  @@map("payment_instructions")
+}
+
+model Holding {
+  id                  String        @id @default(uuid())
+  tenantId            String        @map("tenant_id")
+  userId              String        @map("user_id")
+  opportunityId       String        @map("opportunity_id")
+  investmentRequestId String?       @map("investment_request_id")
+  units               Decimal
+  acquisitionDate     DateTime      @map("acquisition_date")
+  lockupUntil         DateTime?     @map("lockup_until")
+  status              HoldingStatus @default(ACTIVE)
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  user              User              @relation(fields: [userId], references: [id])
+  opportunity       Opportunity       @relation(fields: [opportunityId], references: [id])
+  investmentRequest InvestmentRequest? @relation(fields: [investmentRequestId], references: [id])
+  distributions     Distribution[]
+  statements        Statement[]
+  transferCases     TransferCase[]
+  priorityNotices   PriorityNotice[]
+  tokenRecords      TokenRecord[]
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([opportunityId])
+  @@index([investmentRequestId])
+  @@map("holdings")
+}
+
+model Distribution {
+  id               String             @id @default(uuid())
+  tenantId         String             @map("tenant_id")
+  holdingId        String             @map("holding_id")
+  type             String
+  amount           Decimal
+  currency         String
+  distributionDate DateTime           @map("distribution_date")
+  status           DistributionStatus @default(PENDING)
+  createdAt        DateTime           @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  holding Holding @relation(fields: [holdingId], references: [id])
+
+  @@index([tenantId])
+  @@index([holdingId])
+  @@map("distributions")
+}
+
+model Statement {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  holdingId   String    @map("holding_id")
+  type        String
+  fileKey     String    @map("file_key")
+  periodStart DateTime? @map("period_start")
+  periodEnd   DateTime? @map("period_end")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+  holding Holding @relation(fields: [holdingId], references: [id])
+
+  @@index([tenantId])
+  @@index([holdingId])
+  @@map("statements")
+}
+
+model ContentArticle {
+  id          String          @id @default(uuid())
+  tenantId    String          @map("tenant_id")
+  slug        String
+  title       String
+  body        String
+  category    ContentCategory
+  published   Boolean         @default(false)
+  publishedAt DateTime?       @map("published_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, slug])
+  @@map("content_articles")
+}
+
+model SupportTicket {
+  id        String       @id @default(uuid())
+  tenantId  String       @map("tenant_id")
+  userId    String       @map("user_id")
+  subject   String
+  message   String
+  status    TicketStatus @default(OPEN)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("support_tickets")
+}
+
+model AuditLogEvent {
+  id         String   @id @default(uuid())
+  tenantId   String?  @map("tenant_id")
+  actorId    String?  @map("actor_id")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id])
+  actor  User?   @relation(fields: [actorId], references: [id])
+
+  @@index([tenantId])
+  @@index([actorId])
+  @@index([tenantId, action])
+  @@index([tenantId, createdAt])
+  @@map("audit_log_events")
+}
+
+model BankDetails {
+  id                String   @id @default(uuid())
+  tenantId          String   @map("tenant_id")
+  userId            String   @unique @map("user_id")
+  accountHolderName String   @map("account_holder_name")
+  iban              String?
+  accountNumber     String?  @map("account_number")
+  bankName          String   @map("bank_name")
+  swiftBic          String?  @map("swift_bic")
+  sortCode          String?  @map("sort_code")
+  currency          String   @default("USD")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+  @@map("bank_details")
+}
+
+model TransferCase {
+  id                      String             @id @default(uuid())
+  tenantId                String             @map("tenant_id")
+  reference               String             @unique
+  sellerId                String             @map("seller_id")
+  buyerId                 String?            @map("buyer_id")
+  holdingId               String             @map("holding_id")
+  opportunityId           String             @map("opportunity_id")
+  quantity                Decimal
+  proposedPrice           Decimal?           @map("proposed_price")
+  currency                String             @default("USD")
+  status                  TransferCaseStatus @default(DRAFT)
+  initiationType          TransferInitiationType @default(ISSUER_MANAGED) @map("initiation_type")
+  dueAt                   DateTime?          @map("due_at")
+  assignedToUserId        String?            @map("assigned_to_user_id")
+  rulesResult             Json?              @map("rules_result")
+  priorityWindowExpiresAt DateTime?          @map("priority_window_expires_at")
+  paymentReference        String?            @map("payment_reference")
+  paymentConfirmedAt      DateTime?          @map("payment_confirmed_at")
+  paymentConfirmedBy      String?            @map("payment_confirmed_by")
+  registryMutatedAt       DateTime?          @map("registry_mutated_at")
+  registryMutatedBy       String?            @map("registry_mutated_by")
+  adminNotes              String?            @map("admin_notes")
+  cancelledReason         String?            @map("cancelled_reason")
+  escalatedReason         String?            @map("escalated_reason")
+  rejectedReason          String?            @map("rejected_reason")
+  createdAt               DateTime           @default(now()) @map("created_at")
+  updatedAt               DateTime           @updatedAt @map("updated_at")
+
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id])
+  seller          User                    @relation("TransferSeller", fields: [sellerId], references: [id])
+  buyer           User?                   @relation("TransferBuyer", fields: [buyerId], references: [id])
+  assignedTo      User?                   @relation("TransferCaseAssignee", fields: [assignedToUserId], references: [id])
+  holding         Holding                 @relation(fields: [holdingId], references: [id])
+  opportunity     Opportunity             @relation(fields: [opportunityId], references: [id])
+  priorityNotices PriorityNotice[]
+  registryEntries RegistryEntry[]
+  statusHistory   TransferStatusHistory[]
+  checklistItems  TransferChecklistItem[]
+  invitations     TransferInvitation[]
+  tokenRecord     TokenRecord?
+
+  @@index([tenantId])
+  @@index([sellerId])
+  @@index([buyerId])
+  @@index([opportunityId])
+  @@index([status])
+  @@index([assignedToUserId])
+  @@index([dueAt])
+  @@map("transfer_cases")
+}
+
+model TransferChecklistItem {
+  id              String @id @default(uuid())
+  tenantId        String                     @map("tenant_id")
+  transferCaseId  String                     @map("transfer_case_id")
+  itemKey         String                     @map("item_key")
+  title           String
+  description     String?
+  required        Boolean                    @default(true)
+  status          TransferChecklistItemStatus @default(PENDING)
+  sortOrder       Int                        @default(0) @map("sort_order")
+  reviewedBy      String?                    @map("reviewed_by")
+  reviewedAt      DateTime?                  @map("reviewed_at")
+  rejectionReason String?                    @map("rejection_reason")
+  createdAt       DateTime                   @default(now()) @map("created_at")
+  updatedAt       DateTime                   @updatedAt @map("updated_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  transferCase TransferCase @relation(fields: [transferCaseId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([transferCaseId])
+  @@map("transfer_checklist_items")
+}
+
+model TransferInvitation {
+  id              String                   @id @default(uuid())
+  tenantId        String                   @map("tenant_id")
+  transferCaseId  String                   @map("transfer_case_id")
+  invitedEmail    String                   @map("invited_email")
+  invitedUserId   String?                  @map("invited_user_id")
+  tokenHash       String                   @map("token_hash")
+  status          TransferInvitationStatus @default(PENDING)
+  expiresAt       DateTime                 @map("expires_at")
+  respondedAt     DateTime?                @map("responded_at")
+  createdByUserId String                   @map("created_by_user_id")
+  message         String?
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  transferCase TransferCase @relation(fields: [transferCaseId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("TransferInvitationCreator", fields: [createdByUserId], references: [id])
+
+  @@index([tenantId])
+  @@index([transferCaseId])
+  @@index([invitedEmail])
+  @@index([invitedUserId])
+  @@index([tokenHash])
+  @@map("transfer_invitations")
+}
+
+model TransferStatusHistory {
+  id             String              @id @default(uuid())
+  transferCaseId String              @map("transfer_case_id")
+  fromStatus     TransferCaseStatus?
+  toStatus       TransferCaseStatus
+  actorId        String?             @map("actor_id")
+  notes          String?
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  transferCase TransferCase @relation(fields: [transferCaseId], references: [id])
+
+  @@index([transferCaseId])
+  @@map("transfer_status_histories")
+}
+
+model PriorityNotice {
+  id             String               @id @default(uuid())
+  tenantId       String               @map("tenant_id")
+  transferCaseId String               @map("transfer_case_id")
+  holderId       String               @map("holder_id")
+  holdingId      String               @map("holding_id")
+  status         PriorityNoticeStatus @default(PENDING)
+  expiresAt      DateTime             @map("expires_at")
+  respondedAt    DateTime?            @map("responded_at")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  transferCase TransferCase @relation(fields: [transferCaseId], references: [id])
+  holder       User         @relation(fields: [holderId], references: [id])
+  holding      Holding      @relation(fields: [holdingId], references: [id])
+
+  @@index([tenantId])
+  @@index([transferCaseId])
+  @@index([holderId])
+  @@map("priority_notices")
+}
+
+model RegistryEntry {
+  id             String    @id @default(uuid())
+  tenantId       String    @map("tenant_id")
+  transferCaseId String?   @map("transfer_case_id")
+  opportunityId  String    @map("opportunity_id")
+  fromUserId     String?   @map("from_user_id")
+  toUserId       String    @map("to_user_id")
+  quantity       Decimal
+  eventType      String    @map("event_type")
+  sealedAt       DateTime  @default(now()) @map("sealed_at")
+  sealedBy       String    @map("sealed_by")
+  metadata       Json?
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  transferCase TransferCase? @relation(fields: [transferCaseId], references: [id])
+  opportunity  Opportunity   @relation(fields: [opportunityId], references: [id])
+
+  @@index([tenantId])
+  @@index([opportunityId])
+  @@index([toUserId])
+  @@map("registry_entries")
+}
+
+model TokenRecord {
+  id              String            @id @default(uuid())
+  tenantId        String            @map("tenant_id")
+  transferCaseId  String?           @unique @map("transfer_case_id")
+  holdingId       String            @map("holding_id")
+  tokenState      TokenRecordStatus @default(SHADOW_MIRROR) @map("token_state")
+  contractAddress String?           @map("contract_address")
+  tokenId         String?           @map("token_id")
+  syncPayload     Json?             @map("sync_payload")
+  syncedAt        DateTime?         @map("synced_at")
+  syncError       String?           @map("sync_error")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  transferCase TransferCase? @relation(fields: [transferCaseId], references: [id])
+  holding      Holding       @relation(fields: [holdingId], references: [id])
+
+  @@index([tenantId])
+  @@index([holdingId])
+  @@map("token_records")
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  tenantId       String      @map("tenant_id")
+  userId         String      @map("user_id")
+  opportunityId  String      @map("opportunity_id")
+  side           OrderSide
+  type           OrderType
+  quantity       Decimal     @db.Decimal(18, 6)
+  price          Decimal?    @db.Decimal(18, 2)
+  currency       String      @default("USD")
+  status         OrderStatus @default(PENDING_CHECKS)
+  filledQuantity Decimal     @default(0) @map("filled_quantity") @db.Decimal(18, 6)
+  expiresAt      DateTime?   @map("expires_at")
+  rejectedReason String?     @map("rejected_reason")
+  metadata       Json?
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+  buyTrades   Trade[]     @relation("BuyOrder")
+  sellTrades  Trade[]     @relation("SellOrder")
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([opportunityId])
+  @@index([status])
+  @@map("orders")
+}
+
+model Trade {
+  id            String      @id @default(uuid())
+  tenantId      String      @map("tenant_id")
+  opportunityId String      @map("opportunity_id")
+  buyOrderId    String      @map("buy_order_id")
+  sellOrderId   String      @map("sell_order_id")
+  quantity      Decimal     @db.Decimal(18, 6)
+  price         Decimal     @db.Decimal(18, 2)
+  currency      String      @default("USD")
+  status        TradeStatus @default(TRADE_PENDING)
+  executedAt    DateTime    @default(now()) @map("executed_at")
+  metadata      Json?
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  opportunity Opportunity       @relation(fields: [opportunityId], references: [id])
+  buyOrder    Order             @relation("BuyOrder", fields: [buyOrderId], references: [id])
+  sellOrder   Order             @relation("SellOrder", fields: [sellOrderId], references: [id])
+  settlement  SettlementRecord?
+
+  @@index([tenantId])
+  @@index([opportunityId])
+  @@index([status])
+  @@map("trades")
+}
+
+model SettlementRecord {
+  id           String           @id @default(uuid())
+  tenantId     String           @map("tenant_id")
+  tradeId      String           @unique @map("trade_id")
+  status       SettlementStatus @default(SETTLEMENT_PENDING)
+  dvpCompleted Boolean          @default(false) @map("dvp_completed")
+  failReason   String?          @map("fail_reason")
+  completedAt  DateTime?        @map("completed_at")
+  metadata     Json?
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  trade  Trade  @relation(fields: [tradeId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("settlement_records")
+}
+
+model LiquidityConfig {
+  id                 String   @id @default(uuid())
+  tenantId           String   @map("tenant_id")
+  opportunityId      String   @unique @map("opportunity_id")
+  mode               String   @default("none")
+  minOrderSize       Decimal? @map("min_order_size") @db.Decimal(18, 6)
+  maxOrderSize       Decimal? @map("max_order_size") @db.Decimal(18, 6)
+  tickSize           Decimal? @map("tick_size") @db.Decimal(18, 6)
+  tradingWindowStart String?  @map("trading_window_start")
+  tradingWindowEnd   String?  @map("trading_window_end")
+  allowedCountries   String[] @map("allowed_countries")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id])
+
+  @@index([tenantId])
+  @@map("liquidity_configs")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  userId    String   @map("user_id")
+  type      String   // TRANSFER_UPDATE | SYSTEM | COMPLIANCE
+  title     String
+  body      String
+  metadata  Json?
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([tenantId])
+  @@map("notifications")
+}

@@ -1,0 +1,4 @@
+-- This migration was applied directly to the database.
+-- The SQL file was missing (empty directory). This is a no-op placeholder
+-- to restore migration history integrity.
+-- See: https://www.prisma.io/docs/orm/prisma-migrate/workflows/baselining

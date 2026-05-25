@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: openreal
+      POSTGRES_PASSWORD: openreal_dev_2026
+      POSTGRES_DB: openreal
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U openreal -d openreal']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: openreal-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://openreal:openreal_dev_2026@postgres:5432/openreal?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-production}
+      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-15m}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-7d}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-OpenReal}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_S3_REGION: ${AWS_S3_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:-}
+      # Market Data
+      COINGECKO_API_KEY: ${COINGECKO_API_KEY:-}
+      COINGECKO_API_KEY_TYPE: ${COINGECKO_API_KEY_TYPE:-demo}
+      COINMARKETCAP_API_KEY: ${COINMARKETCAP_API_KEY:-}
+      # RWA Intel / Dune
+      DUNE_API_KEY: ${DUNE_API_KEY:-}
+      DUNE_TREASURIES_QUERY_ID: ${DUNE_TREASURIES_QUERY_ID:-}
+      DUNE_STABLECOINS_QUERY_ID: ${DUNE_STABLECOINS_QUERY_ID:-}
+      DUNE_CREDIT_QUERY_ID: ${DUNE_CREDIT_QUERY_ID:-}
+      # Alchemy / On-Chain
+      ALCHEMY_API_KEY: ${ALCHEMY_API_KEY:-}
+      ALCHEMY_NETWORK: ${ALCHEMY_NETWORK:-eth-mainnet}
+      ALCHEMY_TREASURIES_TOKEN_ADDRESS: ${ALCHEMY_TREASURIES_TOKEN_ADDRESS:-}
+      ALCHEMY_STABLECOINS_TOKEN_ADDRESS: ${ALCHEMY_STABLECOINS_TOKEN_ADDRESS:-}
+      ALCHEMY_CREDIT_TOKEN_ADDRESS: ${ALCHEMY_CREDIT_TOKEN_ADDRESS:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    ports:
+      - '${APP_PORT:-3000}:3000'
+      - '5555:5555' # Debug port
+
+volumes:
+  postgres_data:
+  redis_data:
